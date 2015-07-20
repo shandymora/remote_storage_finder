@@ -61,13 +61,13 @@ class Utils(object):
 
     def get_remote_url(self, remote_uri, url):
         full_url = "%s/%s" % (remote_uri, url)
-        return requests.get(full_url).json()
-
+#        return requests.get(full_url).json()
+        return requests.get(full_url)
 
     def post_remote_url(self, remote_uri, url, data):
         full_url = "%s/%s" % (remote_uri, url)
-        return requests.post(full_url, data).json()
-    
+#        return requests.post(full_url, data).json()
+        return requests.post(full_url, data)
 
 class RemoteReader(object):
     __slots__ = ('remote_uri', 'metric_name')
@@ -189,7 +189,7 @@ class RemoteFinder(object):
         utils = Utils()
         
         #Request for metrics
-        get_metric_names_response = utils.get_remote_url(remote_uri, "metricnames")
+        get_metric_names_response = utils.get_remote_url(remote_uri, "metricnames").json()
         metric_names = get_metric_names_response
         
         #Form tree out of them
