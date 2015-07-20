@@ -102,10 +102,11 @@ class RemoteReader(object):
                 return (time_info, [])
             
             meta_data, datapoints_string = post_response.split("|")
+            datapoints = datapoints_string.split(",")
+            key_string, start_string, end_string, step = meta_data.split(",")
             
-            
-            datapoints = post_response['datapoints']
-            step = post_response['interval']
+#            datapoints = post_response['datapoints']
+#            step = post_response['interval']
             datapoints_length = len(datapoints)
             
             if datapoints_length == 0:
