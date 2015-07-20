@@ -16,7 +16,7 @@ import json
 
 import logging
 from logging.handlers import TimedRotatingFileHandler
-logger = logging.getLogger('graphite_redisdb')
+logger = logging.getLogger('graphite_remote')
 
 REMOTE_MAX_REQUESTS = 10
 REMOTE_REQUEST_POOL = ThreadPool(REMOTE_MAX_REQUESTS)
@@ -85,29 +85,36 @@ class RemoteReader(object):
             
             utils = Utils()
             
-#            post_data_obj = {
-#                    'from': startTime,
-#                    'until': endTime,
-#                    'target': self.metric_name     
-#                    }
             post_data_string = "target=%s&from=%s&until=%s&format=raw" % (self.metric_name, startTime, endTime)
             
-#           post_data = json.dumps(post_data_obj)
-            
             post_response = utils.post_remote_url(self.remote_uri, 'render', data=post_data_string)
-
-            if 'errors' in post_response.keys():
-                logger.error('Error in post_response')
-                time_info = startTime, endTime, 1
-                return (time_info, [])
             
-            meta_data, datapoints_string = post_response.split("|")
-            datapoints = datapoints_string.split(",")
+            meta_data, datapoints_string = post_response.text.rstrip().split("|")
+            
+            
+            datapoints = []
+            datapoints_string = datapoints_string.split(",")
+            for point in datapoints_string:
+                if point != 'None':
+                    datapoints.append( float(point) )
+                else:
+                    datapoints.append( point )
+            
+            for i in range( len(datapoints)):
+                message = '%s:%s' % (i, datapoints[i])
+                
+#            logger.info("message: %s", message)
+            
             key_string, start_string, end_string, step = meta_data.split(",")
+            step = int(step)
             
-#            datapoints = post_response['datapoints']
-#            step = post_response['interval']
+#            logger.info("key_string:%s", key_string)
+#            logger.info("startTime:%s", startTime)
+#            logger.info("endTime:%s", endTime)
+#            logger.info("step:%s", step)
+            
             datapoints_length = len(datapoints)
+ #           logger.info("datapoints_length:%s", datapoints_length)
             
             if datapoints_length == 0:
                 time_info = (startTime, endTime, 1)
@@ -130,10 +137,10 @@ class RemoteReader(object):
     
     
 class RemoteFinder(object):
-    def __init__(self, remote_uri=None):
+    def __init__(self, remote_uri=None, whitelist=[]):
         self.remote_uri = settings.REMOTE_URL.rstrip('/')
         self._setup_logger(settings.LOG_LEVEL, settings.LOG_FILE)
-        
+        self.whitelist = settings.WHITELIST
     
     def _setup_logger(self, level, log_file):
         """ Setup log level and logfile if unset"""
@@ -149,12 +156,11 @@ class RemoteFinder(object):
         try:
             handler = TimedRotatingFileHandler(log_file)
         except IOError:
-            logger.error("Could not write to %s, falling back to stdout",
-                         log_file)
+            logger.error("Could not write to %s, falling back to stdout", log_file)
         else:
             logger.addHandler(handler)
             handler.setFormatter(formatter)
-        
+            logger.info("Logging setup successfully")
     # Fills tree of metrics out from flat list
     # of metrics names, separated by dot value
     def _fill_remote_tree(self, metric_names):
@@ -188,9 +194,16 @@ class RemoteFinder(object):
             query_parts.append(part)
         utils = Utils()
         
+        
         #Request for metrics
-        get_metric_names_response = utils.get_remote_url(remote_uri, "metricnames").json()
-        metric_names = get_metric_names_response
+        metric_names = []
+        get_metric_names_response = utils.get_remote_url(remote_uri, "metrics/index.json").json()
+        
+        # Parse metric names against any whitelists/blacklists
+        for check_pattern in self.whitelist:
+            for metric_name in get_metric_names_response:
+                if ( re.match(check_pattern, metric_name) != None ):
+                    metric_names.append(metric_name)
         
         #Form tree out of them
         metrics_tree = self._fill_remote_tree(metric_names)    
@@ -249,5 +262,7 @@ class RemoteFinder(object):
                     yield LeafNode(node_path, reader), leaf, node_name, node_path
 
     def find_nodes(self, query):
+        logger.info("query %s", query.pattern)
+        
         for node in self._find_nodes_from_pattern(self.remote_uri, query.pattern):
             yield node
