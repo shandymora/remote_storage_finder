@@ -137,10 +137,11 @@ class RemoteReader(object):
     
     
 class RemoteFinder(object):
-    def __init__(self, remote_uri=None, whitelist=[]):
+    def __init__(self, remote_uri=None, whitelist=[], prefix=''):
         self.remote_uri = settings.REMOTE_URL.rstrip('/')
-        self._setup_logger(settings.LOG_LEVEL, settings.LOG_FILE)
-        self.whitelist = settings.WHITELIST
+        self._setup_logger(settings.REMOTE_LOG_LEVEL, settings.REMOTE_LOG_FILE)
+        self.whitelist = settings.REMOTE_WHITELIST
+        self.prefix = settings.REMOTE_PREFIX
     
     def _setup_logger(self, level, log_file):
         """ Setup log level and logfile if unset"""
@@ -203,6 +204,9 @@ class RemoteFinder(object):
         for check_pattern in self.whitelist:
             for metric_name in get_metric_names_response:
                 if ( re.match(check_pattern, metric_name) != None ):
+#                    if ( self.prefix != '' ):
+#                        metric_names.append(self.prefix + metric_name)
+#                    else:
                     metric_names.append(metric_name)
         
         #Form tree out of them
