@@ -98,10 +98,10 @@ class RemoteReader(object):
                 if point != 'None':
                     datapoints.append( float(point) )
                 else:
-                    datapoints.append( point )
+                    datapoints.append( None )
             
-            for i in range( len(datapoints)):
-                message = '%s:%s' % (i, datapoints[i])
+#            for i in range( len(datapoints)):
+#                message = '%s:%s' % (i, datapoints[i])
                 
 #            logger.info("message: %s", message)
             
