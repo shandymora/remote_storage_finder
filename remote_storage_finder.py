@@ -184,6 +184,7 @@ class RemoteFinder(object):
     
     
     def _find_nodes_from_pattern(self, remote_uri, pattern):
+        logger.info("pattern: %s", pattern)
         query_parts = []
         for part in pattern.split('.'):
             part = part.replace('*', '.*')
@@ -198,19 +199,25 @@ class RemoteFinder(object):
         
         #Request for metrics
         metric_names = []
-        get_metric_names_response = utils.get_remote_url(remote_uri, "metrics/index.json").json()
+        
+        get_metric_names_response = utils.get_remote_url(remote_uri, "metrics/find?query="+pattern).json()
         
         # Parse metric names against any whitelists/blacklists
         for check_pattern in self.whitelist:
-            for metric_name in get_metric_names_response:
-                if ( re.match(check_pattern, metric_name) != None ):
+            for metric_name in get_metric_names_response:            
+               if ( re.match(check_pattern, metric_name["id"]) != None ):
 #                    if ( self.prefix != '' ):
-#                        metric_names.append(self.prefix + metric_name)
+#                        metric_names.append(self.prefix + metric_name["id"])
 #                    else:
-                    metric_names.append(metric_name)
+                        metric_names.append(metric_name["id"])
+                        # get children
+                        if ( metric_name["expandable"] == 1):
+                            get_metric_children_response = utils.get_remote_url(remote_uri, "metrics/find?query="+metric_name["id"]+".*").json()
+                            for child_name in get_metric_children_response:
+                                metric_names.append(child_name["id"])
         
         #Form tree out of them
-        metrics_tree = self._fill_remote_tree(metric_names)    
+        metrics_tree = self._fill_remote_tree(metric_names)
         
         for node in self._find_remote_nodes(remote_uri, query_parts, metrics_tree):
             yield node
@@ -219,7 +226,7 @@ class RemoteFinder(object):
         query_regex = re.compile(query_parts[0]+'$')
         for node, node_data, node_name, node_path in self._get_branch_nodes(remote_uri, current_branch, path):
             dot_count = node_name.count('.')
-    
+                
             if dot_count:
                 node_query_regex = re.compile(r'\.'.join(query_parts[:dot_count+1]))
             else:
@@ -240,6 +247,7 @@ class RemoteFinder(object):
     
     def _get_branch_nodes(self, remote_uri, input_branch, path):
         results = input_branch.getChildren()
+        
         if results:
             if path:
                 path += '.'
@@ -253,6 +261,8 @@ class RemoteFinder(object):
                 else:
                     branches.append(item)
             
+            
+            
             if (len(branches) != 0):
                 for branch in branches:
                     node_name = branch.getName()
@@ -265,8 +275,6 @@ class RemoteFinder(object):
                     reader = RemoteReader(remote_uri, node_path)
                     yield LeafNode(node_path, reader), leaf, node_name, node_path
 
-    def find_nodes(self, query):
-        logger.info("query %s", query.pattern)
-        
+    def find_nodes(self, query):        
         for node in self._find_nodes_from_pattern(self.remote_uri, query.pattern):
             yield node
