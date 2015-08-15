@@ -180,6 +180,7 @@ class RemoteFinder(object):
                     cur_parent_node.addChildNode(cur_node)
                 cur_parent_node = cur_node
         
+        logger.info("Built metrictree")
         return tree
     
     
