@@ -131,7 +131,7 @@ class RemoteFinder(object):
             else:
                 whitelist = remote["REMOTE_WHITELIST"]
         
-            metrics = utils.get_remote_url(url, "metrics/find?query="+pattern).json()
+            metrics = utils.get_remote_url(url, "metrics/find?query="+query.pattern).json()
             
             # Parse metric names against any whitelists/blacklists
             for check_pattern in whitelist:
