@@ -2,7 +2,10 @@
 
 A Graphite plugin for aggregating remote Graphite-web servers under a single metric hierarchy.
 
-![Consolidated Graphite](http://gitlab.shandymora.com/andy/remote_storage_finder/tree/master/images/Consolidated Graphite.png)
+### Overview
+
+![Consolidated Graphite](http://gitlab.shandymora.com/andy/remote_storage_finder/tree/master/images/consolidated_graphite.png)
+
 ### Graphite-web configuration
 Example settings below:
 
