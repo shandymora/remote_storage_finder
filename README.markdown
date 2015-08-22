@@ -41,4 +41,4 @@ and [graphite-cyanite](https://github.com/brutasse/graphite-cyanite).
   * Add prefix option to anchor whitelisted metrics
 
 ### Note.
-This is my first attempt at any python, which will explain the hacked togther nature of the code.  Any feedback or suggestions would be most welcome. 
+This is my first attempt at any python, which will explain the hacked togther nature of the code.  Any feedback or suggestions would be most welcome.
