@@ -3,7 +3,7 @@ Example settings below:
 local_settings.py
 ```
 STORAGE_FINDERS = (
-    'remote_storage_finder_v2.RemoteFinder',
+    'remote_storage_finder.RemoteFinder',
 )
 REMOTE_STORAGE_FINDERS = [
     {
