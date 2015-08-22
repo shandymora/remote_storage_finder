@@ -130,31 +130,7 @@ class RemoteFinder(object):
                 whitelist = [ '.*' ]
             else:
                 whitelist = remote["REMOTE_WHITELIST"]
-                
-            prefix_parts = []
-            if ('REMOTE_PREFIX' in remote):
-                prefix_parts = remote["REMOTE_PREFIX"].split('.')
-                
-                logger.info("prefix_parts: %s", prefix_parts)
-                
-                if len(prefix_parts) > 0:
-                    prefix_string = ''
-                    for part in prefix_parts:
-                        if part != '':
-                            prefix_string = prefix_string + part + '.'
-                            
-                            logger.info("prefix_string: %s, pattern: %s", prefix_string, query.pattern)
-                            
-                            if ( re.match('^'+prefix_string.rstrip('.'), query.pattern) == None):
-                                logger.info("Yielding PREFIX BranchNode")
-                                yield BranchNode(prefix_string.rstrip('.'))
-                                return                        
-                    
-            if len(prefix_parts) > 0:
-                pattern = self._strip_prefix(remote["REMOTE_PREFIX"], query.pattern)
-            else:
-                pattern = query.pattern
-            
+        
             metrics = utils.get_remote_url(url, "metrics/find?query="+pattern).json()
             
             # Parse metric names against any whitelists/blacklists
@@ -163,22 +139,10 @@ class RemoteFinder(object):
                    if ( re.match(check_pattern, metric_name["id"]) != None ):
                         path = ''
                         
-                        
-                        
-                        
                         if metric_name["expandable"] == 1:
-                            if remote["REMOTE_PREFIX"] != '':
-                                path = remote["REMOTE_PREFIX"] + metric_name["id"]
-                                logger.info("BranchNode: %s", path)
-                                logger.info("Name: %s", path.split('.')[-1])
-                                yield BranchNode(path)
-                            else:
-                                yield BranchNode(metric_name["id"])
+                            yield BranchNode(metric_name["id"])
+                                
                         else:
-                            if remote["REMOTE_PREFIX"] != '':
-                                path = remote["REMOTE_PREFIX"] + metric_name["id"]
-                                logger.info("LeafNode: %s", path)
-                                yield LeafNode(path, RemoteReader(url, metric_name["id"]))
-                            else:
-                                yield LeafNode(metric_name["id"], RemoteReader(url, metric_name["id"]))
+                            yield LeafNode(metric_name["id"], RemoteReader(url, metric_name["id"]))
+                                
                                 
