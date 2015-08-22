@@ -1,9 +1,6 @@
-import sys, os
-    
-import re
 import requests
 import time
-import math
+import re
 
 from multiprocessing.pool import ThreadPool
 from django.conf import settings
@@ -21,54 +18,16 @@ logger = logging.getLogger('graphite_remote')
 REMOTE_MAX_REQUESTS = 10
 REMOTE_REQUEST_POOL = ThreadPool(REMOTE_MAX_REQUESTS)
 
-class RemoteNode(object):
-    def __init__(self):
-        self.child_nodes = []
-    
-    #Node is leaf, if it has no child nodes.
-    def isLeaf(self):
-        return len(self.child_nodes) == 0
-    
-    #Add child node to node.
-    def addChildNode(self, node):
-        self.child_nodes.append(node)
-    
-    #Get child node with specified name
-    def getChild(self, name):
-        for node in self.child_nodes:
-            if node.name == name:
-                return node
-        return None
-    
-    def getChildren(self):
-        return self.child_nodes
-
-    
-class RemoteTree(RemoteNode):
-    pass
-            
-
-class RemoteRegularNode(RemoteNode):
-    def __init__(self, name):
-        RemoteNode.__init__(self)
-        self.name = name
-    
-    def getName(self):
-        return self.name
- 
-                
 class Utils(object):
 
     def get_remote_url(self, remote_uri, url):
         full_url = "%s/%s" % (remote_uri, url)
-#        return requests.get(full_url).json()
         return requests.get(full_url)
 
     def post_remote_url(self, remote_uri, url, data):
         full_url = "%s/%s" % (remote_uri, url)
-#        return requests.post(full_url, data).json()
         return requests.post(full_url, data)
-
+    
 class RemoteReader(object):
     __slots__ = ('remote_uri', 'metric_name')
     supported = True
@@ -99,22 +58,11 @@ class RemoteReader(object):
                     datapoints.append( float(point) )
                 else:
                     datapoints.append( None )
-            
-#            for i in range( len(datapoints)):
-#                message = '%s:%s' % (i, datapoints[i])
-                
-#            logger.info("message: %s", message)
-            
+                        
             key_string, start_string, end_string, step = meta_data.split(",")
             step = int(step)
-            
-#            logger.info("key_string:%s", key_string)
-#            logger.info("startTime:%s", startTime)
-#            logger.info("endTime:%s", endTime)
-#            logger.info("step:%s", step)
-            
+                        
             datapoints_length = len(datapoints)
- #           logger.info("datapoints_length:%s", datapoints_length)
             
             if datapoints_length == 0:
                 time_info = (startTime, endTime, 1)
@@ -135,13 +83,11 @@ class RemoteReader(object):
 
         return FetchInProgress(job.get)
     
-    
+
 class RemoteFinder(object):
-    def __init__(self, remote_uri=None, whitelist=[], prefix=''):
-        self.remote_uri = settings.REMOTE_URL.rstrip('/')
+    def __init__(self, remotes=[]):
+        self.remotes = settings.REMOTE_STORAGE_FINDERS
         self._setup_logger(settings.REMOTE_LOG_LEVEL, settings.REMOTE_LOG_FILE)
-        self.whitelist = settings.REMOTE_WHITELIST
-        self.prefix = settings.REMOTE_PREFIX
     
     def _setup_logger(self, level, log_file):
         """ Setup log level and logfile if unset"""
@@ -161,121 +107,78 @@ class RemoteFinder(object):
         else:
             logger.addHandler(handler)
             handler.setFormatter(formatter)
-            logger.info("Logging setup successfully")
-    # Fills tree of metrics out from flat list
-    # of metrics names, separated by dot value
-    def _fill_remote_tree(self, metric_names):
-        tree = RemoteTree()
-        
-        for metric_name in metric_names:
-            name_parts = metric_name.split('.')
-            
-            cur_parent_node = tree
-            cur_node = None
-            
-            for name_part in name_parts:
-                cur_node = cur_parent_node.getChild(name_part)
-                if cur_node == None:
-                    cur_node = RemoteRegularNode(name_part)
-                    cur_parent_node.addChildNode(cur_node)
-                cur_parent_node = cur_node
-        
-        logger.info("Built metrictree")
-        return tree
     
-    
-    def _find_nodes_from_pattern(self, remote_uri, pattern):
-        logger.info("pattern: %s", pattern)
-        query_parts = []
-        for part in pattern.split('.'):
-            part = part.replace('*', '.*')
-            part = re.sub(
-                r'{([^{]*)}',
-                lambda x: "(%s)" % x.groups()[0].replace(',', '|'),
-                part,
-            )
-            query_parts.append(part)
+    def _strip_prefix(self, prefix, pattern):
+        if pattern.startswith(prefix):
+            return pattern[len(prefix):]
+        else:
+            return pattern
+            
+    def find_nodes(self, query):
+        # find some paths matching the query, then yield them
         utils = Utils()
-        
-        
-        #Request for metrics
-        metric_names = []
-        
-        get_metric_names_response = utils.get_remote_url(remote_uri, "metrics/find?query="+pattern).json()
-        
-        # Parse metric names against any whitelists/blacklists
-        for check_pattern in self.whitelist:
-            for metric_name in get_metric_names_response:            
-               if ( re.match(check_pattern, metric_name["id"]) != None ):
-#                    if ( self.prefix != '' ):
-#                        metric_names.append(self.prefix + metric_name["id"])
-#                    else:
-                        metric_names.append(metric_name["id"])
-                        # get children
-                        if ( metric_name["expandable"] == 1):
-                            get_metric_children_response = utils.get_remote_url(remote_uri, "metrics/find?query="+metric_name["id"]+".*").json()
-                            for child_name in get_metric_children_response:
-                                metric_names.append(child_name["id"])
-        
-        #Form tree out of them
-        metrics_tree = self._fill_remote_tree(metric_names)
-        
-        for node in self._find_remote_nodes(remote_uri, query_parts, metrics_tree):
-            yield node
-    
-    def _find_remote_nodes(self, remote_uri, query_parts, current_branch, path=''):
-        query_regex = re.compile(query_parts[0]+'$')
-        for node, node_data, node_name, node_path in self._get_branch_nodes(remote_uri, current_branch, path):
-            dot_count = node_name.count('.')
-                
-            if dot_count:
-                node_query_regex = re.compile(r'\.'.join(query_parts[:dot_count+1]))
+       
+        for remote in self.remotes:
+            # Validate settings
+            if 'REMOTE_URL' not in remote:
+                logger.error("Missing REMOTE_URL, ensure key exists in dict REMOTE_STORAGE_FINDERS")
+                return
             else:
-                node_query_regex = query_regex
-    
-            if node_query_regex.match(node_name):
-                if len(query_parts) == 1:
-                    yield node
-                elif not node.is_leaf:
-                    for inner_node in self._find_remote_nodes(
-                        remote_uri,
-                        query_parts[dot_count+1:],
-                        node_data,
-                        node_path,
-                    ):
-                        yield inner_node
-    
-    
-    def _get_branch_nodes(self, remote_uri, input_branch, path):
-        results = input_branch.getChildren()
-        
-        if results:
-            if path:
-                path += '.'
+                url = remote["REMOTE_URL"]
                 
-            branches = [];
-            leaves = [];
+            if ('REMOTE_WHITELIST' not in remote):
+                whitelist = [ '.*' ]
+            else:
+                whitelist = remote["REMOTE_WHITELIST"]
+                
+            prefix_parts = []
+            if ('REMOTE_PREFIX' in remote):
+                prefix_parts = remote["REMOTE_PREFIX"].split('.')
+                
+                logger.info("prefix_parts: %s", prefix_parts)
+                
+                if len(prefix_parts) > 0:
+                    prefix_string = ''
+                    for part in prefix_parts:
+                        if part != '':
+                            prefix_string = prefix_string + part + '.'
+                            
+                            logger.info("prefix_string: %s, pattern: %s", prefix_string, query.pattern)
+                            
+                            if ( re.match('^'+prefix_string.rstrip('.'), query.pattern) == None):
+                                logger.info("Yielding PREFIX BranchNode")
+                                yield BranchNode(prefix_string.rstrip('.'))
+                                return                        
+                    
+            if len(prefix_parts) > 0:
+                pattern = self._strip_prefix(remote["REMOTE_PREFIX"], query.pattern)
+            else:
+                pattern = query.pattern
             
-            for item in results:
-                if item.isLeaf():
-                    leaves.append(item)
-                else:
-                    branches.append(item)
+            metrics = utils.get_remote_url(url, "metrics/find?query="+pattern).json()
             
-            
-            
-            if (len(branches) != 0):
-                for branch in branches:
-                    node_name = branch.getName()
-                    node_path = path + node_name
-                    yield BranchNode(node_path), branch, node_name, node_path
-            if (len(leaves) != 0):
-                for leaf in leaves:
-                    node_name = leaf.getName()
-                    node_path = path + node_name
-                    reader = RemoteReader(remote_uri, node_path)
-                    yield LeafNode(node_path, reader), leaf, node_name, node_path
-
-    def find_nodes(self, query):        
-        for node in self._find_nodes_from_pattern(self.remote_uri, query.pattern):
-            yield node
+            # Parse metric names against any whitelists/blacklists
+            for check_pattern in whitelist:
+                for metric_name in metrics:            
+                   if ( re.match(check_pattern, metric_name["id"]) != None ):
+                        path = ''
+                        
+                        
+                        
+                        
+                        if metric_name["expandable"] == 1:
+                            if remote["REMOTE_PREFIX"] != '':
+                                path = remote["REMOTE_PREFIX"] + metric_name["id"]
+                                logger.info("BranchNode: %s", path)
+                                logger.info("Name: %s", path.split('.')[-1])
+                                yield BranchNode(path)
+                            else:
+                                yield BranchNode(metric_name["id"])
+                        else:
+                            if remote["REMOTE_PREFIX"] != '':
+                                path = remote["REMOTE_PREFIX"] + metric_name["id"]
+                                logger.info("LeafNode: %s", path)
+                                yield LeafNode(path, RemoteReader(url, metric_name["id"]))
+                            else:
+                                yield LeafNode(metric_name["id"], RemoteReader(url, metric_name["id"]))
+                                
