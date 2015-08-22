@@ -1,6 +1,6 @@
-.project
 *.class
 *.pyc
 *.pyo
+.project
 .pydevproject
 .settings*
