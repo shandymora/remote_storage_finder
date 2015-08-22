@@ -4,7 +4,7 @@ from setuptools import setup
 setup(
     name='remote_storage_finder',
     version='0.0.1',
-    license='BSD',
+    license='Apache 2',
     author=u'shandymora',
     description=('A plugin for connecting graphite-web with remote graphite-webs'),
     py_modules=('remote_storage_finder',),
@@ -14,7 +14,7 @@ setup(
     classifiers=(
         'Intended Audience :: Developers',
         'Intended Audience :: System Administrators',
-        'License :: OSI Approved :: BSD License',
+        'License :: OSI Approved :: Apache 2 License',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
         'Programming Language :: Python :: 2',
