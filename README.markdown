@@ -2,6 +2,7 @@
 
 A Graphite plugin for aggregating remote Graphite-web servers under a single metric hierarchy.
 
+![Consolidated Graphite](http://gitlab.shandymora.com/andy/remote_storage_finder/tree/master/images/Consolidated Graphite.png)
 ### Graphite-web configuration
 Example settings below:
 
@@ -32,3 +33,9 @@ REMOTE_LOG_FILE = '/opt/graphite/storage/log/webapp/remote_storage_finder.log'
 ### Acknowledgements
 Significant inspiration and code examples were used from [KairosdbGraphiteFinder](https://github.com/Lastik/KairosdbGraphiteFinder)
 and [graphite-cyanite](https://github.com/brutasse/graphite-cyanite).  
+
+### ToDo
+  * Add prefix option to anchor whitelisted metrics
+
+### Note.
+This is my first attempt at any python, which will explain the hacked togther nature of the code.  Any feedback or suggestions would be most welcome. 
