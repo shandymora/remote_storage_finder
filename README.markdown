@@ -4,7 +4,7 @@ A Graphite plugin for aggregating remote Graphite-web servers under a single met
 
 ### Overview
 
-![Consolidated Graphite](http://gitlab.shandymora.com/andy/remote_storage_finder/tree/master/images/consolidated_graphite.png)
+![Consolidated Graphite](http://gitlab.shandymora.com/andy/remote_storage_finder/blob/master/images/consolidated_graphite.png)
 
 ### Graphite-web configuration
 Example settings below:
