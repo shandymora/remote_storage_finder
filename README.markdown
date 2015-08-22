@@ -4,7 +4,7 @@ A Graphite plugin for aggregating remote Graphite-web servers under a single met
 
 ### Overview
 
-![Consolidated Graphite](http://gitlab.shandymora.com/andy/remote_storage_finder/blob/master/images/consolidated_graphite.png)
+![Consolidated Graphite](http://gitlab.shandymora.com/andy/remote_storage_finder/raw/master/images/consolidated_graphite.png)
 
 ### Graphite-web configuration
 Example settings below:
@@ -41,4 +41,4 @@ and [graphite-cyanite](https://github.com/brutasse/graphite-cyanite).
   * Add prefix option to anchor whitelisted metrics
 
 ### Note.
-This is my first attempt at any python, which will explain the hacked togther nature of the code.  Any feedback or suggestions would be most welcome. 
+This is my first attempt at any python, which will explain the hacked togther nature of the code.  Any feedback or suggestions would be most welcome.
