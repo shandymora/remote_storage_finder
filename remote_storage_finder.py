@@ -22,7 +22,12 @@ class Utils(object):
 
     def get_remote_url(self, remote_uri, url):
         full_url = "%s/%s" % (remote_uri, url)
-        return requests.get(full_url)
+        try:
+            response = requests.get(full_url)
+        except requests.exceptions.RequestException:
+            return '[ { "allowChildren": 0, "expandable": 1, "id": "RemoteStorageFinderERROR", "leaf": 1, "text": "RemoteStorageFinderERROR" }]'
+        else:
+            return response
 
     def post_remote_url(self, remote_uri, url, data):
         full_url = "%s/%s" % (remote_uri, url)
@@ -139,10 +144,16 @@ class RemoteFinder(object):
                    if ( re.match(check_pattern, metric_name["id"]) != None ):
                         path = ''
                         
-                        if metric_name["expandable"] == 1:
+                        # Check for error retrieving remote metrics
+                        if metric_name["expandable"] == 1 and metric_name["allowChildren"] == 0:
+                            yield LeafNode(metric_name["id"])
+                            
+                        if metric_name["leaf"] == 0 and metric_name["expandable"] == 1:
                             yield BranchNode(metric_name["id"])
                                 
-                        else:
+                        if metric_name["leaf"] == 1 and metric_name["expandable"] == 0:
                             yield LeafNode(metric_name["id"], RemoteReader(url, metric_name["id"]))
+                        
+                        
                                 
                                 
