@@ -25,13 +25,20 @@ class Utils(object):
         try:
             response = requests.get(full_url)
         except requests.exceptions.RequestException:
-            return '[ { "allowChildren": 0, "expandable": 1, "id": "RemoteStorageFinderERROR", "leaf": 1, "text": "RemoteStorageFinderERROR" }]'
+#            logger.error("Error accessing URL: %s", full_url)
+            return '[ { "allowChildren": 0, "expandable": 1, "id": "RemoteStorageFinder_ConnERROR", "leaf": 1, "text": "RemoteStorageFinder_ConnERROR" }]'
         else:
             return response
 
     def post_remote_url(self, remote_uri, url, data):
         full_url = "%s/%s" % (remote_uri, url)
-        return requests.post(full_url, data)
+        
+        try:
+            response = requests.post(full_url, data)
+        except requests.exceptions.RequestException:
+            return "metric.not.found"
+        else:
+            return response
     
 class RemoteReader(object):
     __slots__ = ('remote_uri', 'metric_name')
@@ -50,12 +57,15 @@ class RemoteReader(object):
             utils = Utils()
             
             post_data_string = "target=%s&from=%s&until=%s&format=raw" % (self.metric_name, startTime, endTime)
-            
             post_response = utils.post_remote_url(self.remote_uri, 'render', data=post_data_string)
             
-            meta_data, datapoints_string = post_response.text.rstrip().split("|")
-            
-            
+            if post_response == 'metric.not.found':
+                meta_data = "metric.not.found,%i,%i,60" % (startTime, endTime)
+                datapoints_string = "None"
+            else:
+                meta_data, datapoints_string = post_response.text.rstrip().split("|")
+                        
+                        
             datapoints = []
             datapoints_string = datapoints_string.split(",")
             for point in datapoints_string:
@@ -135,19 +145,22 @@ class RemoteFinder(object):
                 whitelist = [ '.*' ]
             else:
                 whitelist = remote["REMOTE_WHITELIST"]
-        
-            metrics = utils.get_remote_url(url, "metrics/find?query="+query.pattern).json()
             
+            metrics_response = utils.get_remote_url(url, "metrics/find?query="+query.pattern)
+            try:
+                metrics = metrics_response.json()
+            except:
+                metrics = json.loads(metrics_response)
+                
             # Parse metric names against any whitelists/blacklists
             for check_pattern in whitelist:
-                for metric_name in metrics:            
-                   if ( re.match(check_pattern, metric_name["id"]) != None ):
-                        path = ''
-                        
-                        # Check for error retrieving remote metrics
-                        if metric_name["expandable"] == 1 and metric_name["allowChildren"] == 0:
-                            yield LeafNode(metric_name["id"])
+                for metric_name in metrics:
+                    # Check for error retrieving remote metrics
+                    if metric_name["expandable"] == 1 and metric_name["allowChildren"] == 0 and query.pattern == '*':
+                        yield LeafNode(metric_name["id"], RemoteReader(url, metric_name["id"]))
                             
+                    if ( re.match(check_pattern, metric_name["id"]) != None ):
+                        path = ''
                         if metric_name["leaf"] == 0 and metric_name["expandable"] == 1:
                             yield BranchNode(metric_name["id"])
                                 
